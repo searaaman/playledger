@@ -6,7 +6,7 @@ type Session struct{
 	StartTime time.Time
 	EndTime time.Time
 	CourtPrice float64
-	/*TimeSlots []*TimeSlot*/
+	TimeSlots []TimeSlot
 
 }
 

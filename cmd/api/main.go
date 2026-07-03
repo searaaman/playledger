@@ -12,6 +12,11 @@ func main(){
 
 	r.GET("/health",handlers.HealthHandler) 
 	r.POST("/sessions",handlers.CreateSession)
+	r.POST("/sessions/:id/timeslots",handlers.CreateTimeSlot)
+	r.GET("/sessions/:id",handlers.GetSession)
+	r.POST("/players",handlers.CreatePlayer)
+	r.GET("/players",handlers.GetPlayers)
+	r.POST("/timeslots/:id/players",handlers.AssignPlayerToTimeSlot)
 
 	r.Run(":8080")
 
