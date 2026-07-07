@@ -7,6 +7,7 @@ type Player struct{
 	Phone string 
 
 	TimeSlots []TimeSlot `gorm:"many2many:player_time_slots:"`
+
 }
 
 type AssignPlayerRequest struct{

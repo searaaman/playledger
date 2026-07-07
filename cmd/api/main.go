@@ -17,6 +17,9 @@ func main(){
 	r.POST("/players",handlers.CreatePlayer)
 	r.GET("/players",handlers.GetPlayers)
 	r.POST("/timeslots/:id/players",handlers.AssignPlayerToTimeSlot)
+	r.GET("/sessions/:id/billing",handlers.GetSessionBilling)
+	r.POST("/sessions/:id/billing",handlers.GetSessionBilling)
+	r.POST("/payments",handlers.CreatePayment)
 
 	r.Run(":8080")
 

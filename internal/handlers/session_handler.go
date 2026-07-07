@@ -70,6 +70,7 @@ func GetSession(ctx *gin.Context){
 	var session domain.Session
 	err=config.DB.
 		Preload("TimeSlots").
+		Preload("TimeSlots.Players").
 		First(&session,sessionID).Error
 		if err!=nil{
 			ctx.JSON(http.StatusNotFound,gin.H{
@@ -78,4 +79,30 @@ func GetSession(ctx *gin.Context){
 			return
 		}
 		ctx.JSON(http.StatusOK,session)
+}
+
+func GetSessionBilling(ctx *gin.Context){
+	sessionID,err:=strconv.Atoi(ctx.Param("id"))
+	if err!=nil{
+		ctx.JSON(http.StatusNotFound,gin.H{
+			"error":err.Error(),
+		})
+		return
+	}
+	
+
+	var session domain.Session 
+	err=config.DB.
+		Preload("TimeSlots").
+		Preload("TimeSlots.Players").
+		First(&session,sessionID).Error
+	if err!=nil{
+		ctx.JSON(http.StatusNotFound,gin.H{
+			"error":"Session not found",
+		})
+		return
+	}
+	bills:=CalculateSessionBills(session)
+	ctx.JSON(http.StatusOK,bills)
+
 }
