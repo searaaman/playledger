@@ -20,6 +20,7 @@ func ConnectDatabase(){
 		&domain.Session{},
 		&domain.Player{},
 		&domain.TimeSlot{},
+		&domain.Payment{},
 	)
 	if err!=nil{
 		log.Fatal("Automigrate was not succesfull",err)

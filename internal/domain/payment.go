@@ -17,7 +17,7 @@ type Payment struct{
 
 type CreatePaymentRequest struct{
 	PlayerID uint `json:"player_id"`
-	SessionID uint `json:"session_id`
+	SessionID uint `json:"session_id"`
 	Amount float64 `json:"amount"`
 
 }

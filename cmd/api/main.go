@@ -20,6 +20,7 @@ func main(){
 	r.GET("/sessions/:id/billing",handlers.GetSessionBilling)
 	r.POST("/sessions/:id/billing",handlers.GetSessionBilling)
 	r.POST("/payments",handlers.CreatePayment)
+	r.GET("/players/:id/ledger",handlers.GetPlayerLedger)
 
 	r.Run(":8080")
 

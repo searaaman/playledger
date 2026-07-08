@@ -6,8 +6,13 @@ import (
 )
 
 func CalculateSessionBills(session domain.Session) []domain.PlayerBill{
+
+	
 	playerBills := make(map[uint]*domain.PlayerBill)
 	for _,slot:=range session.TimeSlots{
+		if len(slot.Players)==0{
+		continue
+	}
 		slotcost:=float64(slot.Courtsbooked)*session.CourtPrice
 		costPerPlayer:=slotcost/float64(len(slot.Players))
 		for _,player:=range slot.Players{

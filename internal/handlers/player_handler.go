@@ -96,3 +96,70 @@ func AssignPlayerToTimeSlot(ctx *gin.Context){
 	})
 
 }
+
+func GetPlayerLedger(ctx *gin.Context){
+	playerID,err:=strconv.Atoi(ctx.Param("id"))
+	if err!=nil{
+		ctx.JSON(http.StatusBadRequest,gin.H{
+		"Error":err.Error(),
+		})
+		return
+	}
+
+	var player domain.Player
+	err=config.DB.First(&player,playerID).Error
+	if err!=nil{
+		ctx.JSON(http.StatusNotFound,gin.H{
+		"Error":"Player Not found",
+		})
+		return
+	}
+	
+
+	var payments []domain.Payment
+	err=config.DB.Where("player_id=?",player.ID).Find(&payments).Error
+	if err!=nil{
+		ctx.JSON(http.StatusBadRequest,gin.H{
+			"Error":err.Error(),
+		})
+		return
+	}
+	var sessions []domain.Session
+	err=config.DB.
+	Preload("TimeSlots").
+	Preload("TimeSlots.Players").
+	Find(&sessions).Error
+
+	if err!=nil{
+		ctx.JSON(http.StatusNotFound,gin.H{
+			"Error":err.Error(),
+		})
+		return
+	}
+
+	var totalPaid float64
+	for _,payment:=range payments{
+		totalPaid+=payment.Amount
+	}
+	var totalBill float64
+	for _,session :=range sessions{
+		bills:=CalculateSessionBills(session)
+
+		for _,bill:=range bills{
+			if bill.PlayerID==player.ID{
+				totalBill+=bill.Amount
+			}
+		}
+	
+	}
+
+	
+	ctx.JSON(http.StatusOK,gin.H{
+		"player":player.Name,
+		"totalbill":totalBill,
+		"total_paid":totalPaid,
+		"balance":totalPaid-totalBill,
+
+		})
+
+}
