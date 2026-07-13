@@ -8,7 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/searaaman/playledger/internal/config"
 	"github.com/searaaman/playledger/internal/domain"
+	"github.com/searaaman/playledger/internal/services"
 )
+
 
 func CreateSession(ctx *gin.Context){
 	var session domain.Session
@@ -102,7 +104,7 @@ func GetSessionBilling(ctx *gin.Context){
 		})
 		return
 	}
-	bills:=CalculateSessionBills(session)
+	bills:=services.CalculateSessionBills(session)
 	ctx.JSON(http.StatusOK,bills)
 
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/searaaman/playledger/internal/config"
 	"github.com/searaaman/playledger/internal/domain"
+	"github.com/searaaman/playledger/internal/services"
 )
 
 func CreatePlayer(ctx *gin.Context){
@@ -143,7 +144,7 @@ func GetPlayerLedger(ctx *gin.Context){
 	}
 	var totalBill float64
 	for _,session :=range sessions{
-		bills:=CalculateSessionBills(session)
+		bills:=services.CalculateSessionBills(session)
 
 		for _,bill:=range bills{
 			if bill.PlayerID==player.ID{

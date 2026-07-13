@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 	"github.com/searaaman/playledger/internal/domain"
 )
+const JWTSecret = "playledger-secret-key"
 
 var DB *gorm.DB
 func ConnectDatabase(){
@@ -21,10 +22,13 @@ func ConnectDatabase(){
 		&domain.Player{},
 		&domain.TimeSlot{},
 		&domain.Payment{},
+		&domain.User{},
 	)
 	if err!=nil{
 		log.Fatal("Automigrate was not succesfull",err)
 	}
 	fmt.Println("Succesfully connected to PostgreSQL")
 }
+
+
 

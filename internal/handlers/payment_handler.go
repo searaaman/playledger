@@ -7,7 +7,9 @@ import (
 	"github.com/searaaman/playledger/internal/domain"
 
 	"github.com/searaaman/playledger/internal/config"
+	"github.com/searaaman/playledger/internal/services"
 )
+
 
 func CreatePayment(ctx *gin.Context){
 	var request domain.CreatePaymentRequest
@@ -21,7 +23,7 @@ func CreatePayment(ctx *gin.Context){
 	}
 
 	if request.Amount<0{
-		
+
 	}
 
 	var player domain.Player 
@@ -45,7 +47,7 @@ func CreatePayment(ctx *gin.Context){
 		return
 	}
 	var playerBill *domain.PlayerBill
-	bills:=CalculateSessionBills(session)
+	bills:=services.CalculateSessionBills(session)
 	for i:= range bills{
 		if bills[i].PlayerID==request.PlayerID{
 			playerBill=&bills[i]
