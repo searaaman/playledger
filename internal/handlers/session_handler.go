@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"fmt"
 
 	"strconv"
 
@@ -46,6 +47,7 @@ func CreateTimeSlot(ctx *gin.Context){
 	var timeSlot domain.TimeSlot
 	err=ctx.ShouldBindJSON(&timeSlot)
 	if err !=nil{
+		fmt.Println("Bind Error:", err)
 		ctx.JSON(http.StatusBadRequest,gin.H{
 			"error":err.Error(),
 		})
@@ -54,6 +56,7 @@ func CreateTimeSlot(ctx *gin.Context){
 	timeSlot.SessionID=uint(sessionID)
 	err=config.DB.Create(&timeSlot).Error
 	if err!=nil{
+		fmt.Println("DB Error:", err)
 		ctx.JSON(http.StatusInternalServerError,gin.H{
 			"error":"failed to create timeslot",
 		})

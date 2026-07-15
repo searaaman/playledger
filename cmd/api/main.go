@@ -5,11 +5,19 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/searaaman/playledger/internal/handlers"
 	"github.com/searaaman/playledger/internal/middleware"
+	"github.com/gin-contrib/cors"
 )
 
 func main(){
 	config.ConnectDatabase()
 	r:=gin.Default()
+
+	r.Use(cors.New(cors.Config{
+	AllowOrigins:     []string{"http://localhost:5173"},
+	AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+	AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+	AllowCredentials: true,
+}))
 
 	auth := r.Group("/")
 	auth.Use(middleware.AuthMiddleware())
