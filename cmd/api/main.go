@@ -6,6 +6,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/searaaman/playledger/internal/config"
+	"github.com/searaaman/playledger/internal/docs"
 	"github.com/searaaman/playledger/internal/handlers"
 	"github.com/searaaman/playledger/internal/middleware"
 )
@@ -25,6 +26,8 @@ func main() {
 	}))
 
 	r.GET("/health", handlers.HealthHandler)
+	r.GET("/docs", docs.UIHandler)
+	r.GET("/docs/openapi.yaml", docs.SpecHandler)
 	r.POST("/register", handlers.Register)
 	r.POST("/login", handlers.Login)
 
