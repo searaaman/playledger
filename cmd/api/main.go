@@ -31,16 +31,26 @@ func main() {
 	auth := r.Group("/")
 	auth.Use(middleware.AuthMiddleware())
 
+	auth.GET("/sessions", handlers.ListSessions)
 	auth.POST("/sessions", handlers.CreateSession)
-	auth.POST("/sessions/:id/timeslots", handlers.CreateTimeSlot)
 	auth.GET("/sessions/:id", handlers.GetSession)
-	auth.POST("/players", handlers.CreatePlayer)
-	auth.GET("/players", handlers.GetPlayers)
-	auth.POST("/timeslots/:id/players", handlers.AssignPlayerToTimeSlot)
+	auth.DELETE("/sessions/:id", handlers.DeleteSession)
+	auth.POST("/sessions/:id/timeslots", handlers.CreateTimeSlot)
 	auth.GET("/sessions/:id/billing", handlers.GetSessionBilling)
-	auth.POST("/sessions/:id/billing", handlers.GetSessionBilling)
-	auth.POST("/payments", handlers.CreatePayment)
+
+	auth.PUT("/timeslots/:id", handlers.UpdateTimeSlot)
+	auth.DELETE("/timeslots/:id", handlers.DeleteTimeSlot)
+	auth.POST("/timeslots/:id/players", handlers.AssignPlayerToTimeSlot)
+	auth.DELETE("/timeslots/:id/players/:playerId", handlers.RemovePlayerFromTimeSlot)
+
+	auth.GET("/players", handlers.GetPlayers)
+	auth.POST("/players", handlers.CreatePlayer)
 	auth.GET("/players/:id/ledger", handlers.GetPlayerLedger)
+	auth.GET("/ledger", handlers.GetLedger)
+
+	auth.GET("/payments", handlers.ListPayments)
+	auth.POST("/payments", handlers.CreatePayment)
+	auth.DELETE("/payments/:id", handlers.DeletePayment)
 
 	if err := r.Run(":" + config.Cfg.ServerPort); err != nil {
 		log.Fatal(err)

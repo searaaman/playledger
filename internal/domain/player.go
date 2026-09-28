@@ -1,15 +1,10 @@
 package domain
 
-type Player struct{
-	ID uint `gorm:"primaryKey"`
+type Player struct {
+	ID uint `gorm:"primaryKey" json:"id"`
 
-	Name string
-	Phone string 
+	Name  string `json:"name"`
+	Phone string `json:"phone"`
 
-	TimeSlots []TimeSlot `gorm:"many2many:player_time_slots:"`
-
-}
-
-type AssignPlayerRequest struct{
-	PlayerID uint `json:"player_id"`
+	TimeSlots []TimeSlot `gorm:"many2many:player_time_slots;" json:"time_slots,omitempty"`
 }
