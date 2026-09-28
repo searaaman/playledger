@@ -1,132 +1,93 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/searaaman/playledger/internal/config"
 	"github.com/searaaman/playledger/internal/domain"
-	"golang.org/x/crypto/bcrypt"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/searaaman/playledger/internal/services"
 )
 
-type RegisterRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
-}
-
-type LoginRequest struct{
-	Email string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`}
-
 func Register(ctx *gin.Context) {
+	if !config.Cfg.AllowRegistration {
+		ctx.JSON(http.StatusForbidden, gin.H{
+			"error": "registration is disabled",
+		})
+		return
+	}
 
-	var request RegisterRequest
-
-	err := ctx.ShouldBindJSON(&request)
-
-	if err != nil {
+	var request domain.RegisterRequest
+	if err := ctx.ShouldBindJSON(&request); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
 
-	passwordHash, err := bcrypt.GenerateFromPassword(
-		[]byte(request.Password),
-		bcrypt.DefaultCost,
-	)
-
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
+	user, err := services.RegisterUser(config.DB, request.Name, request.Email, request.Password)
+	if errors.Is(err, services.ErrEmailExists) {
+		ctx.JSON(http.StatusConflict, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
-
-	user := domain.User{
-		Name:         request.Name,
-		Email:        request.Email,
-		PasswordHash: string(passwordHash),
-	}
-
-	err = config.DB.Create(&user).Error
-
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
+			"error": "failed to create user",
 		})
 		return
 	}
 
 	ctx.JSON(http.StatusCreated, gin.H{
-		"message": "User created successfully",
-		"user":    gin.H{
-			"id":user.ID,
-			"name":user.Name,
-			"email":user.Email,
+		"message": "user created successfully",
+		"user": gin.H{
+			"id":    user.ID,
+			"name":  user.Name,
+			"email": user.Email,
 		},
 	})
 }
 
-func Login(ctx *gin.Context){
-	var request LoginRequest
-
-	err :=ctx.ShouldBindJSON(&request)
-	if err!=nil{
-		ctx.JSON(http.StatusBadRequest,gin.H{
-			"Error":err.Error(),
+func Login(ctx *gin.Context) {
+	var request domain.LoginRequest
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
 		})
 		return
 	}
 
-	var user domain.User
-
-	err=config.DB.Where("email =?",request.Email).First(&user).Error
-
-	if err!=nil{
-		ctx.JSON(http.StatusBadRequest,gin.H{
-			"Error":err.Error(),
+	user, err := services.AuthenticateUser(config.DB, request.Email, request.Password)
+	if errors.Is(err, services.ErrInvalidCredentials) {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error": "login failed",
 		})
 		return
 	}
 
-	err=bcrypt.CompareHashAndPassword(
-		[]byte(user.PasswordHash),
-		[]byte(request.Password),
-
-	)
-
-	if err!=nil{
-		ctx.JSON(http.StatusBadRequest,gin.H{
-			"Error":"Invalid email or password",
+	tokenString, err := services.GenerateToken(user, config.Cfg.JWTSecret, config.Cfg.JWTTTL)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error": "failed to generate token",
 		})
 		return
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-	"user_id": user.ID,
-	"email":   user.Email,
-	})
-
-	tokenString, err := token.SignedString([]byte(config.JWTSecret))
-
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
-
-
-	ctx.JSON(http.StatusOK,gin.H{
-		"Message":"Login Succesful",
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "login successful",
 		"token":   tokenString,
-		"user":gin.H{
-			"id":user.ID,
-			"name":user.Name,
-			"email":user.Email,
+		"user": gin.H{
+			"id":    user.ID,
+			"name":  user.Name,
+			"email": user.Email,
 		},
 	})
 }
