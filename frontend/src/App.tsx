@@ -10,9 +10,12 @@ import Register from "./pages/Register";
 import SessionDetail from "./pages/SessionDetail";
 import Sessions from "./pages/Sessions";
 
+// On GitHub Pages the app lives under /<repo>/, which Vite exposes as BASE_URL.
+const basename = import.meta.env.BASE_URL.replace(/\/$/, "") || undefined;
+
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

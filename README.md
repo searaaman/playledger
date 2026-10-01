@@ -110,13 +110,14 @@ All settings come from environment variables, or from a `.env` file in the direc
 
 | Variable             | Default                  | Notes                                             |
 | -------------------- | ------------------------ | ------------------------------------------------- |
+| `DATABASE_URL`       | (empty)                  | Full connection string; overrides the `DB_*` values |
 | `DB_HOST`            | `localhost`              |                                                   |
 | `DB_PORT`            | `5432`                   |                                                   |
 | `DB_USER`            | `postgres`               |                                                   |
 | `DB_PASSWORD`        | (empty)                  |                                                   |
 | `DB_NAME`            | `playledger`             |                                                   |
 | `DB_SSLMODE`         | `disable`                | Use `require` for hosted databases                |
-| `SERVER_PORT`        | `8080`                   |                                                   |
+| `SERVER_PORT`        | `8080`                   | Falls back to `PORT` if set                       |
 | `JWT_SECRET`         | (required)               | The API refuses to start without it               |
 | `JWT_TTL_HOURS`      | `168`                    | How long a login lasts (7 days)                   |
 | `CORS_ORIGINS`       | `http://localhost:5173`  | Comma-separated                                   |
@@ -148,6 +149,23 @@ Everything except `/health`, `/register`, `/login` and `/docs` needs an `Authori
 | GET    | `/payments`                           | List payments (`?player_id=`, `?session_id=`)  |
 | POST   | `/payments`                           | Record a payment                               |
 | DELETE | `/payments/:id`                       | Delete a payment                               |
+
+## Deployment
+
+The frontend is published to GitHub Pages and the API runs on Render, backed by a Neon Postgres database.
+
+**Database (Neon).** Create a project and copy its connection string (`postgres://…?sslmode=require`).
+
+**API (Render).** In the Render dashboard choose *New → Blueprint* and select this repository. [`render.yaml`](render.yaml) defines the service; when prompted, paste the Neon connection string as `DATABASE_URL`. `JWT_SECRET` is generated automatically. Once deployed, note the service URL, e.g. `https://playledger-api.onrender.com`.
+
+**Frontend (GitHub Pages).**
+1. In the repository settings, set *Pages → Source* to **GitHub Actions**.
+2. Add a repository variable `VITE_API_URL` (*Settings → Secrets and variables → Actions → Variables*) containing the Render URL.
+3. Push to `main` or run the *Deploy frontend* workflow manually. The app is served at `https://<user>.github.io/playledger/`.
+
+After creating your account, set `ALLOW_REGISTRATION=false` on Render so no one else can sign up.
+
+Render's free tier sleeps after a period of inactivity, so the first request after a pause can take up to a minute.
 
 ## Roadmap
 
