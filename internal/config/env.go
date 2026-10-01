@@ -13,6 +13,10 @@ import (
 // Config holds every setting the app reads from the environment.
 // All os.Getenv calls live here so handlers and services never touch the environment directly.
 type Config struct {
+	// DatabaseURL, when set, is used as-is and the DB* fields are ignored.
+	// Hosted Postgres providers such as Neon hand out a single URL like this.
+	DatabaseURL string
+
 	DBHost     string
 	DBPort     string
 	DBUser     string
@@ -42,6 +46,8 @@ func Load() error {
 	}
 
 	Cfg = Config{
+		DatabaseURL: os.Getenv("DATABASE_URL"),
+
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),
 		DBUser:     getEnv("DB_USER", "postgres"),
@@ -49,12 +55,13 @@ func Load() error {
 		DBName:     getEnv("DB_NAME", "playledger"),
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
 
-		ServerPort: getEnv("SERVER_PORT", "8080"),
+		// Hosts like Render choose the port and pass it in PORT.
+		ServerPort: getEnv("SERVER_PORT", getEnv("PORT", "8080")),
 
 		JWTSecret: os.Getenv("JWT_SECRET"),
 		JWTTTL:    time.Duration(ttlHours) * time.Hour,
 
-		CORSOrigins:       strings.Split(getEnv("CORS_ORIGINS", "http://localhost:5173"), ","),
+		CORSOrigins:       splitList(getEnv("CORS_ORIGINS", "http://localhost:5173")),
 		AllowRegistration: getEnv("ALLOW_REGISTRATION", "true") == "true",
 	}
 
@@ -69,4 +76,15 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+// splitList turns "a, b,c" into ["a" "b" "c"], dropping empty entries.
+func splitList(value string) []string {
+	var items []string
+	for _, item := range strings.Split(value, ",") {
+		if item = strings.TrimSpace(item); item != "" {
+			items = append(items, item)
+		}
+	}
+	return items
 }
