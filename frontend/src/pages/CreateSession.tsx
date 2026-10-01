@@ -1,81 +1,154 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import api from "../api/axios";
+import { useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { errorMessage } from "../api/client";
+import { createSession } from "../api/endpoints";
+import { ErrorBox } from "../components/Status";
+import { money, time, todayInputValue } from "../lib/format";
+
+// Works out the session's start and end. An end time at or before the start
+// time is taken to be after midnight, e.g. 21:00 to 01:00.
+function sessionRange(day: string, start: string, end: string) {
+  const startDate = new Date(`${day}T${start}`);
+  const endDate = new Date(`${day}T${end}`);
+  if (endDate <= startDate) endDate.setDate(endDate.getDate() + 1);
+  return { startDate, endDate };
+}
+
+function hourlyPreview(startDate: Date, endDate: Date): string[] {
+  const labels: string[] = [];
+  for (let s = new Date(startDate); s < endDate; s = new Date(s.getTime() + 3_600_000)) {
+    const e = new Date(Math.min(s.getTime() + 3_600_000, endDate.getTime()));
+    labels.push(`${time(s.toISOString())}–${time(e.toISOString())}`);
+    if (labels.length > 24) break;
+  }
+  return labels;
+}
 
 function CreateSession() {
   const navigate = useNavigate();
+  const [day, setDay] = useState(todayInputValue());
+  const [start, setStart] = useState("18:00");
+  const [end, setEnd] = useState("22:00");
+  const [courtPrice, setCourtPrice] = useState("300");
+  const [hourly, setHourly] = useState(true);
+  const [courts, setCourts] = useState("2");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [courtPrice, setCourtPrice] = useState("");
+  const valid = day && start && end;
+  const { startDate, endDate } = valid
+    ? sessionRange(day, start, end)
+    : { startDate: null, endDate: null };
+  const preview = startDate && endDate && hourly ? hourlyPreview(startDate, endDate) : [];
+  const estimated = preview.length * Number(courts || 0) * Number(courtPrice || 0);
 
-  const handleCreate = async () => {
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!startDate || !endDate) return;
+    setBusy(true);
+    setError(null);
     try {
-      const token = localStorage.getItem("token");
-
-      const response = await api.post(
-        "/sessions",
-        {
-          StartTime: startTime,
-          EndTime: endTime,
-          court_price: Number(courtPrice),
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      console.log("Session Created:", response.data);
-
-      console.log(response.data);
-      console.log(response.data.ID);
-      console.log(response.data.id);
-      navigate(`/sessions/${response.data.id}`);
-
-      
-      setStartTime("");
-      setEndTime("");
-      setCourtPrice("");
+      const session = await createSession({
+        start_time: startDate.toISOString(),
+        end_time: endDate.toISOString(),
+        court_price: Number(courtPrice),
+        hourly_slots: hourly,
+        default_courts: Number(courts),
+      });
+      navigate(`/sessions/${session.id}`);
     } catch (err) {
-      console.error("Failed to create session:", err);
+      setError(errorMessage(err));
+      setBusy(false);
     }
   };
 
   return (
     <div>
-      <h1>Create Session</h1>
+      <div className="page-head">
+        <div>
+          <p className="small">
+            <Link to="/sessions">← Sessions</Link>
+          </p>
+          <h1>New session</h1>
+        </div>
+      </div>
 
-      <input
-        type="datetime-local"
-        value={startTime}
-        onChange={(e) => setStartTime(e.target.value)}
-      />
+      <form className="card" onSubmit={handleSubmit} style={{ maxWidth: 640 }}>
+        <ErrorBox message={error} />
+        <div className="form-grid">
+          <label>
+            Date
+            <input type="date" required value={day} onChange={(e) => setDay(e.target.value)} />
+          </label>
+          <label>
+            Starts
+            <input type="time" required value={start} onChange={(e) => setStart(e.target.value)} />
+          </label>
+          <label>
+            Ends
+            <input type="time" required value={end} onChange={(e) => setEnd(e.target.value)} />
+          </label>
+          <label>
+            Court price per hour (₹)
+            <input
+              type="number"
+              min="0"
+              step="any"
+              required
+              value={courtPrice}
+              onChange={(e) => setCourtPrice(e.target.value)}
+            />
+          </label>
+        </div>
 
-      <br />
-      <br />
+        <div className="stack" style={{ marginTop: 20, gap: 12 }}>
+          <label className="inline">
+            <input type="checkbox" checked={hourly} onChange={(e) => setHourly(e.target.checked)} />
+            Split into one-hour slots
+          </label>
+          {hourly && (
+            <>
+              <label style={{ maxWidth: 200 }}>
+                Courts booked per slot
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  value={courts}
+                  onChange={(e) => setCourts(e.target.value)}
+                />
+              </label>
+              <div>
+                <div className="slot-preview">
+                  {preview.map((label) => (
+                    <span key={label} className="slot-chip">
+                      {label}
+                    </span>
+                  ))}
+                </div>
+                <p className="muted small" style={{ marginBottom: 0 }}>
+                  {preview.length} slot{preview.length === 1 ? "" : "s"} · booking cost {money(estimated)}.
+                  You can change courts per slot afterwards.
+                </p>
+              </div>
+            </>
+          )}
+          {!hourly && (
+            <p className="hint" style={{ margin: 0 }}>
+              You'll add time slots yourself on the next screen.
+            </p>
+          )}
+        </div>
 
-      <input
-        type="datetime-local"
-        value={endTime}
-        onChange={(e) => setEndTime(e.target.value)}
-      />
-
-      <br />
-      <br />
-
-      <input
-        type="number"
-        placeholder="Court Price"
-        value={courtPrice}
-        onChange={(e) => setCourtPrice(e.target.value)}
-      />
-
-      <br />
-      <br />
-
-      <button onClick={handleCreate}>Create Session</button>
+        <div className="form-actions">
+          <button className="btn" disabled={busy || !valid}>
+            {busy ? "Creating…" : "Create session"}
+          </button>
+          <Link to="/sessions" className="btn btn-secondary">
+            Cancel
+          </Link>
+        </div>
+      </form>
     </div>
   );
 }

@@ -1,34 +1,35 @@
-package config 
+package config
 
 import (
 	"fmt"
 	"log"
+
+	"github.com/searaaman/playledger/internal/domain"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"github.com/searaaman/playledger/internal/domain"
 )
-const JWTSecret = "playledger-secret-key"
 
 var DB *gorm.DB
-func ConnectDatabase(){
-	dsn:="host=localhost user=postgres password=12345678 dbname=playledger port=5432 sslmode=disable"
-	db,err:=gorm.Open(postgres.Open(dsn),&gorm.Config{})
-	if err!=nil{
-		log.Fatal("Failed to connect to db")
+
+func ConnectDatabase() {
+	dsn := fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+		Cfg.DBHost, Cfg.DBUser, Cfg.DBPassword, Cfg.DBName, Cfg.DBPort, Cfg.DBSSLMode,
+	)
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatal("Failed to connect to db: ", err)
 	}
-	DB=db
-	err=DB.AutoMigrate(
+	DB = db
+	err = DB.AutoMigrate(
 		&domain.Session{},
 		&domain.Player{},
 		&domain.TimeSlot{},
 		&domain.Payment{},
 		&domain.User{},
 	)
-	if err!=nil{
-		log.Fatal("Automigrate was not succesfull",err)
+	if err != nil {
+		log.Fatal("Automigrate was not succesfull: ", err)
 	}
 	fmt.Println("Succesfully connected to PostgreSQL")
 }
-
-
-

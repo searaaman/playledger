@@ -1,8 +1,8 @@
 package services
 
-import(
-	"testing"
+import (
 	"github.com/searaaman/playledger/internal/domain"
+	"testing"
 )
 
 func TestCalculateSessionBillsTwoPlayers(t *testing.T) {
@@ -17,7 +17,7 @@ func TestCalculateSessionBillsTwoPlayers(t *testing.T) {
 	}
 
 	slot := domain.TimeSlot{
-		Courtsbooked: 1,
+		CourtsBooked: 1,
 		Players: []domain.Player{
 			rahul,
 			anand,
@@ -33,7 +33,6 @@ func TestCalculateSessionBillsTwoPlayers(t *testing.T) {
 
 	bills := CalculateSessionBills(session)
 
-	
 	if len(bills) != 2 {
 		t.Fatalf("expected 2 bills, got %d", len(bills))
 	}
@@ -65,7 +64,7 @@ func TestCalculateSessionBillsMultipleTimeSlots(t *testing.T) {
 	}
 
 	slot1 := domain.TimeSlot{
-		Courtsbooked: 1,
+		CourtsBooked: 1,
 		Players: []domain.Player{
 			rahul,
 			anand,
@@ -73,7 +72,7 @@ func TestCalculateSessionBillsMultipleTimeSlots(t *testing.T) {
 	}
 
 	slot2 := domain.TimeSlot{
-		Courtsbooked: 1,
+		CourtsBooked: 1,
 		Players: []domain.Player{
 			rahul,
 		},
@@ -109,7 +108,7 @@ func TestCalculateSessionBillsMultipleTimeSlots(t *testing.T) {
 }
 
 func TestCalculateSessionBillsMultipleCourts(t *testing.T) {
-	
+
 	rahul := domain.Player{
 		ID:   1,
 		Name: "Rahul",
@@ -121,7 +120,7 @@ func TestCalculateSessionBillsMultipleCourts(t *testing.T) {
 	}
 
 	slot := domain.TimeSlot{
-		Courtsbooked: 2,
+		CourtsBooked: 2,
 		Players: []domain.Player{
 			rahul,
 			anand,
@@ -135,10 +134,8 @@ func TestCalculateSessionBillsMultipleCourts(t *testing.T) {
 		},
 	}
 
-	
 	bills := CalculateSessionBills(session)
 
-	
 	if len(bills) != 2 {
 		t.Fatalf("expected 2 bills, got %d", len(bills))
 	}
@@ -159,9 +156,9 @@ func TestCalculateSessionBillsMultipleCourts(t *testing.T) {
 }
 
 func TestCalculateSessionBillsEmptyTimeSlot(t *testing.T) {
-	
+
 	slot := domain.TimeSlot{
-		Courtsbooked: 1,
+		CourtsBooked: 1,
 		Players:      []domain.Player{},
 	}
 
@@ -172,27 +169,55 @@ func TestCalculateSessionBillsEmptyTimeSlot(t *testing.T) {
 		},
 	}
 
-	
 	bills := CalculateSessionBills(session)
 
-	
 	if len(bills) != 0 {
 		t.Fatalf("expected 0 bills, got %d", len(bills))
 	}
 }
 
 func TestCalculateSessionBillsEmptySession(t *testing.T) {
-	
+
 	session := domain.Session{
 		CourtPrice: 300,
 		TimeSlots:  []domain.TimeSlot{},
 	}
 
-	
 	bills := CalculateSessionBills(session)
 
-	
 	if len(bills) != 0 {
 		t.Fatalf("expected 0 bills, got %d", len(bills))
+	}
+}
+
+// The session we verified by hand through the API.
+func TestCalculateSessionBillsRealSession(t *testing.T) {
+	rahul := domain.Player{ID: 1, Name: "Rahul"}
+	akhil := domain.Player{ID: 2, Name: "Akhil"}
+	anand := domain.Player{ID: 3, Name: "Anand"}
+
+	session := domain.Session{
+		CourtPrice: 300,
+		TimeSlots: []domain.TimeSlot{
+			{CourtsBooked: 2, Players: []domain.Player{rahul, akhil, anand}},
+			{CourtsBooked: 1, Players: []domain.Player{rahul, anand}},
+		},
+	}
+
+	bills := CalculateSessionBills(session)
+
+	expected := []domain.PlayerBill{
+		{PlayerID: 2, Name: "Akhil", Amount: 200},
+		{PlayerID: 3, Name: "Anand", Amount: 350},
+		{PlayerID: 1, Name: "Rahul", Amount: 350},
+	}
+	if len(bills) != len(expected) {
+		t.Fatalf("expected %d bills, got %d", len(expected), len(bills))
+	}
+	// Bills come back sorted by name.
+	for i := range expected {
+		if bills[i] != expected[i] {
+			t.Errorf("bill %d: expected %+v, got %+v", i, expected[i], bills[i])
+		}
 	}
 }

@@ -1,0 +1,17 @@
+# Local configuration with real secrets. Copy .env.example to .env instead.
+.env
+.env.*
+!.env.example
+
+# Go build output
+/api
+/playledger
+/bin/
+*.exe
+*.test
+coverage.out
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store

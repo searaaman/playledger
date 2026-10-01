@@ -1,0 +1,505 @@
+openapi: 3.0.3
+info:
+  title: PlayLedger API
+  version: 1.0.0
+  description: |
+    Track pickleball sessions, who played in which time slot, what each player owes, and what they paid.
+
+    **Billing rule:** for each time slot, `courts_booked × court_price` is split evenly between
+    the players in that slot. A player's session bill is the sum over the slots they played.
+
+    **Ledger:** `balance = total_paid - total_bill`. Negative means the player owes money.
+    Unpaid amounts carry forward because the ledger is computed across all sessions.
+
+    Every endpoint except `/health`, `/register`, `/login` and `/docs` needs
+    `Authorization: Bearer <token>` from `/login`.
+servers:
+  - url: /
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+  - name: Sessions
+  - name: Time slots
+  - name: Players
+  - name: Payments
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
+  /register:
+    post:
+      tags: [Auth]
+      summary: Create a user account
+      description: Returns 403 when the server runs with `ALLOW_REGISTRATION=false`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, example: Host }
+                email: { type: string, format: email, example: host@example.com }
+                password: { type: string, minLength: 8, example: supersecret }
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  user: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /login:
+    post:
+      tags: [Auth]
+      summary: Log in and get a JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  token: { type: string }
+                  user: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /sessions:
+    get:
+      tags: [Sessions]
+      summary: List sessions, newest first, with slots and players
+      responses:
+        "200":
+          description: Sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Session" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [Sessions]
+      summary: Create a session
+      description: With `hourly_slots=true`, one slot per hour is created, each with `default_courts` courts. A trailing part-hour becomes a shorter slot.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [start_time, end_time]
+              properties:
+                start_time: { type: string, format: date-time, example: "2026-09-27T18:00:00+05:30" }
+                end_time: { type: string, format: date-time, example: "2026-09-27T22:00:00+05:30" }
+                court_price: { type: number, minimum: 0, example: 300 }
+                hourly_slots: { type: boolean, example: true }
+                default_courts: { type: integer, minimum: 0, example: 2 }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /sessions/{id}:
+    parameters:
+      - $ref: "#/components/parameters/id"
+    get:
+      tags: [Sessions]
+      summary: Get a session with its slots and players
+      responses:
+        "200":
+          description: Session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Sessions]
+      summary: Delete a session, its slots and attendance
+      description: Refused with 409 if any payments are recorded against the session.
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /sessions/{id}/timeslots:
+    parameters:
+      - $ref: "#/components/parameters/id"
+    post:
+      tags: [Time slots]
+      summary: Add a time slot to a session
+      description: The slot must fall within the session's start and end time.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [start_time, end_time]
+              properties:
+                start_time: { type: string, format: date-time }
+                end_time: { type: string, format: date-time }
+                courts_booked: { type: integer, minimum: 0, example: 2 }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeSlot" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /sessions/{id}/billing:
+    parameters:
+      - $ref: "#/components/parameters/id"
+    get:
+      tags: [Sessions]
+      summary: What each player owes for this session
+      responses:
+        "200":
+          description: Bills, sorted by name
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PlayerBill" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /timeslots/{id}:
+    parameters:
+      - $ref: "#/components/parameters/id"
+    put:
+      tags: [Time slots]
+      summary: Change how many courts were booked for a slot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                courts_booked: { type: integer, minimum: 0, example: 1 }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TimeSlot" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Time slots]
+      summary: Delete a slot and its attendance
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /timeslots/{id}/players:
+    parameters:
+      - $ref: "#/components/parameters/id"
+    post:
+      tags: [Time slots]
+      summary: Mark a player as having played in this slot
+      description: Idempotent. Assigning an already-assigned player does nothing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [player_id]
+              properties:
+                player_id: { type: integer, example: 1 }
+      responses:
+        "200":
+          description: Assigned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Message" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /timeslots/{id}/players/{playerId}:
+    parameters:
+      - $ref: "#/components/parameters/id"
+      - name: playerId
+        in: path
+        required: true
+        schema: { type: integer }
+    delete:
+      tags: [Time slots]
+      summary: Remove a player from a slot
+      responses:
+        "204": { description: Removed }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /players:
+    get:
+      tags: [Players]
+      summary: List players, sorted by name
+      responses:
+        "200":
+          description: Players
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Player" }
+    post:
+      tags: [Players]
+      summary: Create a player
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, example: Karan }
+                phone: { type: string, example: "9876543210" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Player" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /players/{id}/ledger:
+    parameters:
+      - $ref: "#/components/parameters/id"
+    get:
+      tags: [Players]
+      summary: One player's balance, per-session breakdown and payments
+      responses:
+        "200":
+          description: Ledger
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlayerLedger" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /ledger:
+    get:
+      tags: [Players]
+      summary: Every player's balance, biggest debts first
+      responses:
+        "200":
+          description: Ledger
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/LedgerEntry" }
+
+  /payments:
+    get:
+      tags: [Payments]
+      summary: List payments, newest first
+      parameters:
+        - { name: player_id, in: query, schema: { type: integer } }
+        - { name: session_id, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: Payments
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Payment" }
+    post:
+      tags: [Payments]
+      summary: Record a payment
+      description: The player must have played in at least one slot of the session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [player_id, session_id, amount]
+              properties:
+                player_id: { type: integer, example: 1 }
+                session_id: { type: integer, example: 1 }
+                amount: { type: number, exclusiveMinimum: true, minimum: 0, example: 300 }
+      responses:
+        "201":
+          description: Recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Payment" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /payments/{id}:
+    parameters:
+      - $ref: "#/components/parameters/id"
+    delete:
+      tags: [Payments]
+      summary: Delete a payment recorded by mistake
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+
+  responses:
+    BadRequest:
+      description: Invalid input
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing, invalid or expired token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+    Message:
+      type: object
+      properties:
+        message: { type: string }
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string }
+    Player:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        phone: { type: string }
+    TimeSlot:
+      type: object
+      properties:
+        id: { type: integer }
+        session_id: { type: integer }
+        start_time: { type: string, format: date-time }
+        end_time: { type: string, format: date-time }
+        courts_booked: { type: integer }
+        players:
+          type: array
+          items: { $ref: "#/components/schemas/Player" }
+    Session:
+      type: object
+      properties:
+        id: { type: integer }
+        start_time: { type: string, format: date-time }
+        end_time: { type: string, format: date-time }
+        court_price: { type: number }
+        time_slots:
+          type: array
+          items: { $ref: "#/components/schemas/TimeSlot" }
+    PlayerBill:
+      type: object
+      properties:
+        player_id: { type: integer }
+        name: { type: string }
+        amount: { type: number }
+    LedgerEntry:
+      type: object
+      properties:
+        player_id: { type: integer }
+        name: { type: string }
+        phone: { type: string }
+        total_bill: { type: number }
+        total_paid: { type: number }
+        balance: { type: number, description: "total_paid - total_bill; negative means the player owes" }
+    SessionCharge:
+      type: object
+      properties:
+        session_id: { type: integer }
+        start_time: { type: string, format: date-time }
+        end_time: { type: string, format: date-time }
+        slot_count: { type: integer }
+        bill: { type: number }
+        paid: { type: number }
+    PlayerLedger:
+      allOf:
+        - $ref: "#/components/schemas/LedgerEntry"
+        - type: object
+          properties:
+            sessions:
+              type: array
+              items: { $ref: "#/components/schemas/SessionCharge" }
+            payments:
+              type: array
+              items: { $ref: "#/components/schemas/Payment" }
+    Payment:
+      type: object
+      properties:
+        id: { type: integer }
+        player_id: { type: integer }
+        session_id: { type: integer }
+        amount: { type: number }
+        created_at: { type: string, format: date-time }
+        player: { $ref: "#/components/schemas/Player" }

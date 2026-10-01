@@ -1,4 +1,5 @@
 package domain
+
 import "time"
 
 type Session struct {
@@ -8,4 +9,3 @@ type Session struct {
 	CourtPrice float64    `json:"court_price"`
 	TimeSlots  []TimeSlot `json:"time_slots"`
 }
-
