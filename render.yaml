@@ -5,7 +5,8 @@ services:
     name: playledger-api
     runtime: go
     plan: free
-    branch: main
+    branch: master
+    region: ohio
     buildCommand: go build -o bin/api ./cmd/api
     startCommand: ./bin/api
     healthCheckPath: /health

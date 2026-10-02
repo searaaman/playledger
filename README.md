@@ -161,7 +161,7 @@ The frontend is published to GitHub Pages and the API runs on Render, backed by 
 **Frontend (GitHub Pages).**
 1. In the repository settings, set *Pages → Source* to **GitHub Actions**.
 2. Add a repository variable `VITE_API_URL` (*Settings → Secrets and variables → Actions → Variables*) containing the Render URL.
-3. Push to `main` or run the *Deploy frontend* workflow manually. The app is served at `https://<user>.github.io/playledger/`.
+3. Push to `master` or run the *Deploy frontend* workflow manually. The app is served at `https://<user>.github.io/playledger/`.
 
 After creating your account, set `ALLOW_REGISTRATION=false` on Render so no one else can sign up.
 
