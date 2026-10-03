@@ -166,15 +166,3 @@ The frontend is published to GitHub Pages and the API runs on Render, backed by 
 After creating your account, set `ALLOW_REGISTRATION=false` on Render so no one else can sign up.
 
 Render's free tier sleeps after a period of inactivity, so the first request after a pause can take up to a minute.
-
-## Roadmap
-
-- [x] Core backend: sessions, slots, attendance, billing, payments, ledger
-- [x] Unit tests for billing, ledger, sessions and auth
-- [x] Environment configuration
-- [x] JWT authentication
-- [x] React frontend
-- [x] OpenAPI / Swagger docs
-- [ ] Docker and Docker Compose
-- [ ] CI (tests, lint, build on every push)
-- [ ] Deployment
