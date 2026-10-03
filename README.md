@@ -1,22 +1,22 @@
 # PlayLedger
 
-PlayLedger tracks who played, who owes what, and who has paid for a recurring pickleball group.
+PlayLedger is an attendance and billing platform for recurring pickleball sessions. It records which players participated in each time slot, calculates individual charges from actual participation, and maintains a running ledger of billed amounts, payments and outstanding balances.
 
-A host books courts for a few hours, say 6pm to 10pm, but players come and go at different times. If Karan plays from 6 to 8, he should only pay for those two hours, and only his share of the courts that were booked in those hours. PlayLedger records attendance per time slot, works out each player's bill from that, and keeps a running balance so anything unpaid carries forward to the next session.
+Court bookings typically span several hours, while players arrive and leave at different times. Rather than splitting the total cost evenly across everyone who attended, PlayLedger bills each player only for the time slots they participated in, at their proportional share of the courts booked for those slots. Unpaid balances carry forward automatically to subsequent sessions.
 
 Built with **Go (Gin, GORM, PostgreSQL)** and **React (TypeScript, Vite)**.
 
 ## Features
 
-- **Sessions split into time slots.** Create a session and have it cut into one-hour slots automatically, each with its own number of courts.
-- **Attendance grid.** Players down the side, slots across the top; tap a cell to mark who played when.
-- **Fair billing.** Each slot's court cost is split evenly between the players in that slot.
-- **Payments and ledger.** Record payments, see every player's balance, and let unpaid amounts carry forward.
-- **Player history.** Per-session bills and payments for each player, plus a WhatsApp reminder link for anyone who owes.
-- **JWT authentication.** Tokens expire, and sign-ups can be switched off.
-- **API docs.** Swagger UI at `/docs`.
+- **Session and time slot management.** Sessions can be divided into hourly slots automatically, with the number of courts configured per slot.
+- **Slot-level attendance.** An attendance grid (players × time slots) records participation for each slot.
+- **Proportional billing.** Each slot's court cost is divided evenly among the players in that slot.
+- **Payments and ledger.** Payments are recorded per player, with balances carried forward across sessions.
+- **Player history.** Each player has a per-session breakdown of charges and payments, with a WhatsApp link for payment reminders.
+- **Authentication.** JWT-based authentication with token expiry and configurable self-registration.
+- **API documentation.** OpenAPI specification served through Swagger UI at `/docs`.
 
-## How billing works
+## Billing model
 
 For every time slot:
 
@@ -25,24 +25,24 @@ slot cost       = courts booked × court price per hour
 cost per player = slot cost ÷ players in that slot
 ```
 
-A player's bill for a session is the sum over the slots they played. Empty slots aren't billed.
+A player's charge for a session is the sum of their charges across all slots they participated in. Slots with no players are not billed.
 
-Example, with courts at ₹300/hour:
+**Example** (court price ₹300 per hour):
 
-| Slot        | Courts | Players              | Each pays |
-| ----------- | ------ | -------------------- | --------- |
-| 7pm – 8pm   | 2      | Rahul, Akhil, Anand  | ₹200      |
-| 8pm – 9pm   | 1      | Rahul, Anand         | ₹150      |
+| Time slot   | Courts booked | Players in slot | Charge per player |
+| ----------- | ------------- | --------------- | ----------------- |
+| 7pm – 8pm   | 2             | 3               | ₹200              |
+| 8pm – 9pm   | 1             | 2               | ₹150              |
 
-So Akhil owes ₹200, while Rahul and Anand owe ₹350 each.
+A player present in both slots is billed ₹350; a player present only in the first slot is billed ₹200.
 
-Payments are recorded per player and session, not per slot. A player's balance is:
+Payments are recorded against a player and session rather than individual time slots. Each player's balance is calculated as:
 
 ```
 balance = total paid − total billed      (negative = still owes)
 ```
 
-If Rahul pays ₹300 of his ₹350, he carries −₹50 into his next session.
+A player billed ₹350 who pays ₹300 carries a balance of −₹50 into subsequent sessions.
 
 ## Project structure
 
@@ -110,13 +110,14 @@ All settings come from environment variables, or from a `.env` file in the direc
 
 | Variable             | Default                  | Notes                                             |
 | -------------------- | ------------------------ | ------------------------------------------------- |
+| `DATABASE_URL`       | (empty)                  | Full connection string; overrides the `DB_*` values |
 | `DB_HOST`            | `localhost`              |                                                   |
 | `DB_PORT`            | `5432`                   |                                                   |
 | `DB_USER`            | `postgres`               |                                                   |
 | `DB_PASSWORD`        | (empty)                  |                                                   |
 | `DB_NAME`            | `playledger`             |                                                   |
 | `DB_SSLMODE`         | `disable`                | Use `require` for hosted databases                |
-| `SERVER_PORT`        | `8080`                   |                                                   |
+| `SERVER_PORT`        | `8080`                   | Falls back to `PORT` if set                       |
 | `JWT_SECRET`         | (required)               | The API refuses to start without it               |
 | `JWT_TTL_HOURS`      | `168`                    | How long a login lasts (7 days)                   |
 | `CORS_ORIGINS`       | `http://localhost:5173`  | Comma-separated                                   |
@@ -149,14 +150,19 @@ Everything except `/health`, `/register`, `/login` and `/docs` needs an `Authori
 | POST   | `/payments`                           | Record a payment                               |
 | DELETE | `/payments/:id`                       | Delete a payment                               |
 
-## Roadmap
+## Deployment
 
-- [x] Core backend: sessions, slots, attendance, billing, payments, ledger
-- [x] Unit tests for billing, ledger, sessions and auth
-- [x] Environment configuration
-- [x] JWT authentication
-- [x] React frontend
-- [x] OpenAPI / Swagger docs
-- [ ] Docker and Docker Compose
-- [ ] CI (tests, lint, build on every push)
-- [ ] Deployment
+The frontend is published to GitHub Pages and the API runs on Render, backed by a Neon Postgres database.
+
+**Database (Neon).** Create a project and copy its connection string (`postgres://…?sslmode=require`).
+
+**API (Render).** In the Render dashboard choose *New → Blueprint* and select this repository. [`render.yaml`](render.yaml) defines the service; when prompted, paste the Neon connection string as `DATABASE_URL`. `JWT_SECRET` is generated automatically. Once deployed, note the service URL, e.g. `https://playledger-api.onrender.com`.
+
+**Frontend (GitHub Pages).**
+1. In the repository settings, set *Pages → Source* to **GitHub Actions**.
+2. Add a repository variable `VITE_API_URL` (*Settings → Secrets and variables → Actions → Variables*) containing the Render URL.
+3. Push to `master` or run the *Deploy frontend* workflow manually. The app is served at `https://<user>.github.io/playledger/`.
+
+After creating your account, set `ALLOW_REGISTRATION=false` on Render so no one else can sign up.
+
+Render's free tier sleeps after a period of inactivity, so the first request after a pause can take up to a minute.

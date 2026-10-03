@@ -1,0 +1,25 @@
+# Render Blueprint for the Go API. Create it from the Render dashboard:
+# New > Blueprint > pick this repository.
+services:
+  - type: web
+    name: playledger-api
+    runtime: go
+    plan: free
+    branch: master
+    region: ohio
+    buildCommand: go build -o bin/api ./cmd/api
+    startCommand: ./bin/api
+    healthCheckPath: /health
+    envVars:
+      # Neon connection string, entered in the dashboard (never committed).
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: https://searaaman.github.io
+      # Switch to "false" once your own account is created.
+      - key: ALLOW_REGISTRATION
+        value: "true"
+      - key: GIN_MODE
+        value: release
